@@ -25,6 +25,6 @@ export const useSettingsStore = create<SettingsState>()(
         settings: { ...state.settings, ...newSettings }
       }))
     }),
-    { name: 'reelsource-settings' }
+    { name: 'vendex-settings' }
   )
 );

@@ -16,19 +16,19 @@ async def lifespan(app: FastAPI):
     await init_db()
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     os.makedirs(FRAME_OUTPUT_DIR, exist_ok=True)
-    logger.info("ReelSource backend started")
+    logger.info("Vendex backend started")
     yield
-    logger.info("ReelSource backend shutting down")
+    logger.info("Vendex backend shutting down")
 
 app = FastAPI(
-    title="ReelSource API",
+    title="Vendex API",
     version="1.0.0",
     lifespan=lifespan
 )
 
 @app.get("/health")
 async def root_health():
-    return {"status": "ok", "message": "ReelSource backend is running"}
+    return {"status": "ok", "message": "Vendex backend is running"}
 
 app.add_middleware(
     CORSMiddleware,

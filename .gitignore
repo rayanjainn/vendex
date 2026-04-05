@@ -38,10 +38,29 @@ next-env.d.ts
 
 # backend
 __pycache__
+**/__pycache__
+*.pyc
+*.pyo
 venv
 
-.claude
+# database
+backend/reelsource.db
+backend/vendex.db
+*.db
+*.db-shm
+*.db-wal
 
-# downloads
+# alibaba session
+backend/alibaba_session.json
+
+# temp dirs
 downloads
 frames
+backend/downloads
+backend/frames
+
+# logs
+*.log
+logs/
+
+.claude

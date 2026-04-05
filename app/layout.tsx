@@ -10,8 +10,8 @@ import { Toaster } from "@/components/ui/sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ReelSource",
-  description: "Sourcing intelligence",
+  title: "Vendex",
+  description: "Vendor intelligence",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

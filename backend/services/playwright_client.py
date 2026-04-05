@@ -492,10 +492,10 @@ async def _extract_product_data(page, url: str, index: int, job_id: str, log_cb=
         item_id_m = re.search(r"(\d{8,})", url)
         item_id_val = item_id_m.group(1) if item_id_m else (ld_sku or "")
         logger.info(f"[{index}] chat debug: memberId={member_id!r} itemId={item_id_val!r} chatHref={d.get('chatHrefDebug','')!r} storeHref={d.get('storeHref','')!r}")
-        if member_id:
-            chat_url = f"https://message.alibaba.com/message/contactSupplier.htm?toAccount={member_id}&productId={item_id_val}"
-        else:
-            chat_url = ""
+        # Chat URL: open the product page with our extension's trigger hash.
+        # The ReelSource Chrome extension detects #vendex-chat, auto-clicks
+        # "Contact Supplier", pre-fills a default message, and clicks Send.
+        chat_url = url + "#vendex-chat"
 
         desc_html = ""
 

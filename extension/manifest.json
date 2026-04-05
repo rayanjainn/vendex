@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Vendex Chat",
+  "version": "1.0",
+  "description": "Auto-opens Alibaba supplier chat with a default message",
+  "content_scripts": [
+    {
+      "matches": ["*://*.alibaba.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [],
+  "icons": {}
+}

@@ -3,7 +3,7 @@ import asyncio
 import aiosqlite
 import json
 
-DATABASE_PATH = os.getenv("DATABASE_PATH", "./reelsource.db")
+DATABASE_PATH = os.getenv("DATABASE_PATH", "./vendex.db")
 
 # Global write lock — SQLite allows one writer at a time; this prevents "database is locked"
 # when parallel tasks (e.g. 10 scraper tabs all finishing simultaneously) try to write.

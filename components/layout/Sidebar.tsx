@@ -38,7 +38,7 @@ export function Sidebar() {
         </div>
         {sidebarOpen && (
           <div>
-            <span className="text-sm font-bold text-slate-900 tracking-tight">ReelSource</span>
+            <span className="text-sm font-bold text-slate-900 tracking-tight">Vendex</span>
             <span className="block text-[10px] font-medium text-indigo-500 tracking-wider leading-none mt-0.5">LENS AI</span>
           </div>
         )}

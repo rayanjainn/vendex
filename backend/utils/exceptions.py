@@ -1,6 +1,6 @@
-class ReelSourceError(Exception): pass
-class DownloadError(ReelSourceError): pass
+class VendexError(Exception): pass
+class DownloadError(VendexError): pass
 class LoginRequiredError(DownloadError): pass
-class RateLimitError(ReelSourceError): pass
-class IdentificationError(ReelSourceError): pass
-class SearchError(ReelSourceError): pass
+class RateLimitError(VendexError): pass
+class IdentificationError(VendexError): pass
+class SearchError(VendexError): pass

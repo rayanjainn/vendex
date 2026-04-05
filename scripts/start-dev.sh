@@ -1,6 +1,6 @@
 #!/bin/bash
 # Start both services for development
-echo "🚀 Starting ReelSource..."
+echo "🚀 Starting Vendex..."
 
 # Determine python command
 if command -v python3 >/dev/null 2>&1; then
@@ -78,7 +78,7 @@ npm run dev &
 FRONTEND_PID=$!
 
 echo ""
-echo "✨ ReelSource is now running!"
+echo "✨ Vendex is now running!"
 echo "  - Frontend: http://localhost:3001"
 echo "  - Backend:  http://localhost:3002"
 echo "  - API Docs: http://localhost:3002/docs"
