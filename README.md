@@ -1,8 +1,39 @@
-# Vendex
+<div align="center">
 
-**Turn any product reel or Alibaba URL into a ranked supplier shortlist — instantly.**
+<h1>
+  <img src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/zap.svg" width="28" height="28" style="vertical-align:middle;" />
+  Vendex
+</h1>
 
-Paste an Instagram/TikTok reel or a direct Alibaba product link. Vendex downloads the video, extracts the best frame, runs a visual image search on Alibaba, and returns a ranked list of matching suppliers with prices, MOQs, trust badges, delivery estimates, and a one-click chat button.
+<p align="center">
+  <strong>Turn any product reel or Alibaba URL into a ranked supplier shortlist — instantly.</strong><br/>
+  Paste a reel. Get suppliers. Chat in one click.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-14.2-black?style=for-the-badge&logo=next.js" />
+  <img src="https://img.shields.io/badge/FastAPI-0.111-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/Playwright-stealth-2EAD33?style=for-the-badge&logo=playwright&logoColor=white" />
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/platform-macOS-lightgrey?style=flat-square&logo=apple" />
+  <img src="https://img.shields.io/badge/Chrome_Extension-MV3-4285F4?style=flat-square&logo=googlechrome&logoColor=white" />
+</p>
+
+<br/>
+
+> Paste an Instagram or TikTok reel — or a direct Alibaba product URL.
+> Vendex downloads the video, picks the sharpest frame, runs a visual image search on Alibaba,
+> and returns a ranked supplier list with prices, MOQs, trust badges, delivery estimates, and one-click chat.
+
+<br/>
+
+</div>
 
 ---
 
@@ -108,15 +139,54 @@ Paste an Instagram/TikTok reel or a direct Alibaba product link. Vendex download
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, Zustand |
-| Backend | FastAPI, Python 3.12, asyncio |
-| Scraping | Playwright (real Chrome binary), playwright-stealth |
-| Video | yt-dlp, OpenCV |
-| Database | SQLite via aiosqlite |
-| Currency | forex-python (live INR ↔ USD rates) |
-| Chat extension | Chrome MV3 content script |
+### Frontend
+![Next.js](https://img.shields.io/badge/Next.js-14.2-black?style=flat-square&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![Zustand](https://img.shields.io/badge/Zustand-5.0-orange?style=flat-square)
+
+| Package | Version | Purpose |
+|---|---|---|
+| `next` | 14.2.14 | App framework, App Router, SSR |
+| `react` | 18 | UI rendering |
+| `typescript` | 5.x | Type safety |
+| `tailwindcss` | 3.4 | Utility-first styling |
+| `zustand` | 5.0.12 | Global state management |
+| `shadcn/ui` + `radix-ui` | latest | Headless accessible components |
+| `lucide-react` | 1.0.1 | Icon set |
+| `swr` | 2.4.1 | Data fetching + polling |
+| `sonner` | 2.0.7 | Toast notifications |
+| `papaparse` | 5.5.3 | CSV parsing |
+| `vaul` | 1.1.2 | Drawer/sheet component |
+
+### Backend
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square&logo=fastapi&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-latest-2EAD33?style=flat-square&logo=playwright&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-aiosqlite_0.20-003B57?style=flat-square&logo=sqlite&logoColor=white)
+
+| Package | Version | Purpose |
+|---|---|---|
+| `fastapi` | 0.111.0 | Async REST API framework |
+| `uvicorn[standard]` | 0.30.1 | ASGI server |
+| `playwright` | latest | Browser automation (real Chrome) |
+| `playwright-stealth` | 2.0.3 | Anti-bot fingerprint patching |
+| `yt-dlp` | 2025.3.31 | Reel video downloading |
+| `opencv-python-headless` | latest | Frame extraction + sharpness scoring |
+| `numpy` | 1.26.4 | Image processing arrays |
+| `Pillow` | latest | Image handling |
+| `pydantic` | 2.7.1 | Request/response validation |
+| `aiosqlite` | 0.20.0 | Async SQLite driver |
+| `httpx` | 0.27.0 | Async HTTP client |
+| `forex-python` | 1.9.2 | Live INR ↔ USD conversion |
+| `tenacity` | 8.3.0 | Retry logic |
+| `openpyxl` | 3.1.5 | CSV/Excel batch upload |
+
+### Browser Extension
+![Chrome](https://img.shields.io/badge/Chrome_Extension-MV3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)
+
+Manifest V3 content script — no build step, load unpacked directly.
 
 ---
 
