@@ -135,7 +135,9 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') 
 :: ── Start backend ─────────────────────────────────────────────────────────
 echo [INFO] Starting FastAPI backend (Hidden)...
 cd /d "%BACKEND%"
-powershell -Command "Start-Process cmd -ArgumentList '/c ^"%UVICORN%^" main:app --reload --port 3002 > vendex-backend.log 2>&1' -WindowStyle Hidden"
+echo CreateObject("Wscript.Shell").Run "cmd /c ""%UVICORN%"" main:app --reload --port 3002 > vendex-backend.log 2>&1", 0, False > launch_backend.vbs
+wscript.exe launch_backend.vbs
+del launch_backend.vbs
 
 :: Wait for backend to be healthy (poll up to 30s)
 set /a tries=0
@@ -154,7 +156,9 @@ echo [OK] Backend is up.
 :: ── Start frontend ────────────────────────────────────────────────────────
 echo [INFO] Starting Next.js production server (Hidden)...
 cd /d "%ROOT%"
-powershell -Command "Start-Process cmd -ArgumentList '/c npm run start > vendex-frontend.log 2>&1' -WindowStyle Hidden"
+echo CreateObject("Wscript.Shell").Run "cmd /c npm run start > vendex-frontend.log 2>&1", 0, False > launch_frontend.vbs
+wscript.exe launch_frontend.vbs
+del launch_frontend.vbs
 
 :: Wait for frontend
 set /a tries=0
