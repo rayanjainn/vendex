@@ -676,7 +676,7 @@ async def _make_browser_context(p):
     # Real Chrome has a valid Chrome installation path and passes binary-level checks.
     _CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     browser = await p.chromium.launch(
-        headless=False,
+        headless=True,
         executable_path=_CHROME_PATH if os.path.exists(_CHROME_PATH) else None,
         args=_LAUNCH_ARGS,
     )
