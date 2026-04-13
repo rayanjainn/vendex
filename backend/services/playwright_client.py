@@ -1264,9 +1264,9 @@ async def search_alibaba_with_playwright(image_path: str, job_id: str, log_cb=No
                 await log_cb("search", f"Found {len(urls)} product listings — scraping pages in parallel")
 
             # ── Parallel extraction using multiple browser tabs ────────────────
-            # Open up to 5 tabs simultaneously so pages load concurrently.
-            # Each tab gets its own page object; they share the same context/cookies.
-            CONCURRENCY = 10
+            # Reduced to 2 tabs to avoid triggering Alibaba's mass-scraping CAPTCHAs.
+            # This makes the search more stable and less likely to get blocked.
+            CONCURRENCY = 2
 
             async def _scrape_tab(idx: int, product_url: str) -> SupplierResult | None:
                 tab = await context.new_page()
