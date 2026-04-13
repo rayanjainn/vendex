@@ -58,6 +58,11 @@ backend/vendex.db
 # alibaba session
 backend/alibaba_session.json
 
+# cookies / auth tokens
+backend/instagram_cookies.txt
+backend/*cookies*
+*.cookies.txt
+
 # temp dirs
 downloads
 frames
@@ -68,4 +73,5 @@ backend/frames
 *.log
 logs/
 
+# IDE / tools
 .claude

@@ -14,7 +14,6 @@ set "BACKEND=%ROOT%\backend"
 set "VENV=%BACKEND%\venv"
 set "VENV_PYTHON=%VENV%\Scripts\python.exe"
 set "VENV_PIP=%VENV%\Scripts\pip.exe"
-set "UVICORN=%VENV%\Scripts\uvicorn.exe"
 
 :: ── Load .env ──────────────────────────────────────────────────────────────
 if exist "%ROOT%\.env" (
@@ -64,9 +63,6 @@ for /r "%BACKEND%" %%f in (*.pyc) do del "%%f" 2>nul
 for /d /r "%BACKEND%" %%d in (__pycache__) do rd /s /q "%%d" 2>nul
 
 :: ── Check Alibaba session validity ────────────────────────────────────────
-:: Inspect the two shortest-lived critical cookies (_m_h5_tk and xlly_s).
-:: If either is missing or past its Unix expiry timestamp, delete the file so
-:: Playwright starts fresh rather than replaying a dead session.
 if exist "%BACKEND%\alibaba_session.json" (
     cd /d "%BACKEND%"
     "%VENV_PYTHON%" -c "import json,time,sys; f='alibaba_session.json'; critical={'_m_h5_tk','xlly_s'}; cookies={c['name']:c for c in json.load(open(f)).get('cookies',[])}; now=time.time(); bad=[n for n in critical if not cookies.get(n) or cookies[n].get('expires',-1)<=now]; sys.exit(1 if bad else 0)" >nul 2>&1
@@ -89,12 +85,11 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: ── Check FFmpeg ───────────────────────────────────────────
+:: ── Check FFmpeg ───────────────────────────────────────────────────────────
 ffmpeg -version >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] FFmpeg not found in PATH.
-    echo        If you just installed it, RESTART your terminal.
-    echo        If you haven't installed it, run: winget install ffmpeg
+    echo        Install with: winget install ffmpeg
     pause
     exit /b 1
 )
@@ -124,8 +119,8 @@ if errorlevel 1 (
 echo [OK] Production build complete.
 
 :: ── Clean up existing processes ──────────────────────────────────────────
-echo [INFO] Cleaning up existing processes on ports 3001 and 3002...
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3002 ^| findstr LISTENING') do (
+echo [INFO] Cleaning up existing processes on ports 8001 and 3001...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8001 ^| findstr LISTENING') do (
     taskkill /f /pid %%a >nul 2>&1
 )
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') do (
@@ -133,9 +128,13 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') 
 )
 
 :: ── Start backend ─────────────────────────────────────────────────────────
-echo [INFO] Starting FastAPI backend (Hidden)...
+:: Uses run.py (no --reload) so Python uses ProactorEventLoop, which
+:: Playwright needs for subprocess support on Windows.
+echo [INFO] Starting FastAPI backend on port 8001...
+
 cd /d "%BACKEND%"
-echo CreateObject("Wscript.Shell").Run "cmd /c ""%UVICORN%"" main:app --reload --port 3002 > vendex-backend.log 2>&1", 0, False > launch_backend.vbs
+
+echo CreateObject("Wscript.Shell").Run "cmd /c ""%VENV_PYTHON%"" run.py", 1, False > launch_backend.vbs
 wscript.exe launch_backend.vbs
 del launch_backend.vbs
 
@@ -144,17 +143,17 @@ set /a tries=0
 :wait_backend
 set /a tries+=1
 if %tries% gtr 30 (
-    echo [ERROR] Backend did not start after 30s. Check vendex-backend.log
+    echo [ERROR] Backend did not start after 30s.
     pause
     exit /b 1
 )
 timeout /t 1 /nobreak >nul
-curl -sf http://localhost:3002/health >nul 2>&1
+curl -sf http://localhost:8001/health >nul 2>&1
 if errorlevel 1 goto wait_backend
-echo [OK] Backend is up.
+echo [OK] Backend is up on port 8001.
 
 :: ── Start frontend ────────────────────────────────────────────────────────
-echo [INFO] Starting Next.js production server (Hidden)...
+echo [INFO] Starting Next.js production server on port 3001...
 cd /d "%ROOT%"
 echo CreateObject("Wscript.Shell").Run "cmd /c npm run start > vendex-frontend.log 2>&1", 0, False > launch_frontend.vbs
 wscript.exe launch_frontend.vbs
@@ -177,8 +176,8 @@ echo.
 echo  ============================================
 echo   Vendex is running!
 echo   Frontend : http://localhost:3001
-echo   Backend  : http://localhost:3002
-echo   API docs : http://localhost:3002/docs
+echo   Backend  : http://localhost:8001
+echo   API docs : http://localhost:8001/docs
 echo  ============================================
 echo.
 
