@@ -105,7 +105,7 @@ if not exist "%ROOT%\node_modules" (
 :: ── Start backend ─────────────────────────────────────────────────────────
 echo [INFO] Starting FastAPI backend on port 3002...
 cd /d "%BACKEND%"
-start "Vendex Backend" /min cmd /c ""%UVICORN%" main:app --reload --port 3002 2>&1 | tee vendex-backend.log"
+start "Vendex Backend" /min cmd /c ""%UVICORN%" main:app --reload --port 3002 > vendex-backend.log 2>&1"
 
 :: Wait for backend to be healthy (poll up to 30s)
 set /a tries=0
@@ -124,7 +124,7 @@ echo [OK] Backend is up.
 :: ── Start frontend ────────────────────────────────────────────────────────
 echo [INFO] Starting Next.js frontend on port 3001...
 cd /d "%ROOT%"
-start "Vendex Frontend" /min cmd /c "npm run dev 2>&1 | tee vendex-frontend.log"
+start "Vendex Frontend" /min cmd /c "npm run dev > vendex-frontend.log 2>&1"
 
 :: Wait for frontend
 set /a tries=0
