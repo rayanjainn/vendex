@@ -113,6 +113,15 @@ if errorlevel 1 (
 )
 echo [OK] Production build complete.
 
+:: ── Clean up existing processes ──────────────────────────────────────────
+echo [INFO] Cleaning up existing processes on ports 3001 and 3002...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3002 ^| findstr LISTENING') do (
+    taskkill /f /pid %%a >nul 2>&1
+)
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') do (
+    taskkill /f /pid %%a >nul 2>&1
+)
+
 :: ── Start backend ─────────────────────────────────────────────────────────
 echo [INFO] Starting FastAPI backend (Hidden)...
 cd /d "%BACKEND%"
