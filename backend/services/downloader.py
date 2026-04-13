@@ -10,7 +10,8 @@ logger = get_logger(__name__)
 
 DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", "./downloads")
 INSTAGRAM_COOKIES_FILE = os.getenv("INSTAGRAM_COOKIES_FILE", "./instagram_cookies.txt")
-COOKIES_FROM_BROWSER = os.getenv("COOKIES_FROM_BROWSER", "chrome")  # chrome, firefox, safari, edge
+COOKIES_FROM_BROWSER = os.getenv("COOKIES_FROM_BROWSER", "chrome")
+FFMPEG_LOCATION = os.getenv("FFMPEG_LOCATION", None)
 
 def detect_platform(url: str) -> Platform:
     url_lower = url.lower()
@@ -37,6 +38,7 @@ def _download_sync(url: str, job_id: str) -> Dict[str, Any]:
         'no_warnings': True,
         'nocheckcertificate': True,
         'concurrent_fragment_downloads': 5,
+        'ffmpeg_location': FFMPEG_LOCATION,
     }
 
     platform = detect_platform(url)

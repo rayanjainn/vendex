@@ -89,6 +89,16 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:: ── Check FFmpeg ───────────────────────────────────────────
+ffmpeg -version >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] FFmpeg not found in PATH.
+    echo        If you just installed it, RESTART your terminal.
+    echo        If you haven't installed it, run: winget install ffmpeg
+    pause
+    exit /b 1
+)
+
 :: ── Install frontend deps if missing ─────────────────────────────────────
 if not exist "%ROOT%\node_modules" (
     echo [INFO] Installing frontend dependencies...
