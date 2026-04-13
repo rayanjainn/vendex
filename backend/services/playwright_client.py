@@ -672,12 +672,19 @@ async def _make_browser_context(p):
     Launch Chromium and create a stealth context.
     Reuses a saved session file if it exists so Alibaba sees a returning user.
     """
-    # Use real system Chrome — Alibaba detects Playwright's bundled Chromium binary.
-    # Real Chrome has a valid Chrome installation path and passes binary-level checks.
-    _CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    # Use real system Chrome if available — Alibaba detects Playwright's bundled Chromium.
+    _CHROME_PATHS = [
+        # Windows
+        os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+        # macOS
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    ]
+    _chrome_exe = next((p for p in _CHROME_PATHS if os.path.exists(p)), None)
     browser = await p.chromium.launch(
         headless=True,
-        executable_path=_CHROME_PATH if os.path.exists(_CHROME_PATH) else None,
+        executable_path=_chrome_exe,
         args=_LAUNCH_ARGS,
     )
 
@@ -687,13 +694,22 @@ async def _make_browser_context(p):
     else:
         logger.info("No valid session found — starting fresh browser session.")
 
+    # Detect OS for user-agent and viewport
+    _is_windows = os.name == "nt"
+    _ua = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/131.0.0.0 Safari/537.36"
+    ) if _is_windows else (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/131.0.0.0 Safari/537.36"
+    )
+    _viewport = {"width": 1920, "height": 1080} if _is_windows else {"width": 1280, "height": 800}
+
     context = await browser.new_context(
-        user_agent=(
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/131.0.0.0 Safari/537.36"
-        ),
-        viewport={"width": 1280, "height": 800},
+        user_agent=_ua,
+        viewport=_viewport,
         locale="en-US",
         timezone_id="Asia/Kolkata",
         color_scheme="light",
