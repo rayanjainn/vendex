@@ -102,10 +102,21 @@ if not exist "%ROOT%\node_modules" (
     echo [OK] Frontend dependencies ready.
 )
 
+:: ── Build frontend (Production) ──────────────────────────────────────────
+echo [INFO] Building frontend for production...
+cd /d "%ROOT%"
+call npm run build
+if errorlevel 1 (
+    echo [ERROR] Frontend build failed.
+    pause
+    exit /b 1
+)
+echo [OK] Production build complete.
+
 :: ── Start backend ─────────────────────────────────────────────────────────
-echo [INFO] Starting FastAPI backend on port 3002...
+echo [INFO] Starting FastAPI backend (Hidden)...
 cd /d "%BACKEND%"
-start "Vendex Backend" /min cmd /c ""%UVICORN%" main:app --reload --port 3002 > vendex-backend.log 2>&1"
+powershell -Command "Start-Process cmd -ArgumentList '/c ^"%UVICORN%^" main:app --reload --port 3002 > vendex-backend.log 2>&1' -WindowStyle Hidden"
 
 :: Wait for backend to be healthy (poll up to 30s)
 set /a tries=0
@@ -122,9 +133,9 @@ if errorlevel 1 goto wait_backend
 echo [OK] Backend is up.
 
 :: ── Start frontend ────────────────────────────────────────────────────────
-echo [INFO] Starting Next.js frontend on port 3001...
+echo [INFO] Starting Next.js production server (Hidden)...
 cd /d "%ROOT%"
-start "Vendex Frontend" /min cmd /c "npm run dev > vendex-frontend.log 2>&1"
+powershell -Command "Start-Process cmd -ArgumentList '/c npm run start > vendex-frontend.log 2>&1' -WindowStyle Hidden"
 
 :: Wait for frontend
 set /a tries=0
