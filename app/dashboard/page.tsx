@@ -150,9 +150,7 @@ export default function DashboardPage() {
   };
 
   const toggleAll = () => {
-    const processable = displayedRows.filter(
-      (r) => r.status === "pending" && r.productLink,
-    );
+    const processable = filteredRows.filter((r) => r.productLink);
     if (selectedIds.size === processable.length) {
       setSelectedIds(new Set());
     } else {
@@ -162,7 +160,7 @@ export default function DashboardPage() {
 
   const handleProcess = async () => {
     if (selectedIds.size === 0) return;
-    const selected = displayedRows.filter(
+    const selected = rows.filter(
       (r) => selectedIds.has(r.id) && r.productLink,
     );
     if (selected.length === 0) {
@@ -217,13 +215,6 @@ export default function DashboardPage() {
     }
   };
 
-  const processableSelected = displayedRows.filter(
-    (r) => selectedIds.has(r.id) && r.productLink,
-  ).length;
-  const allProcessable = displayedRows.filter(
-    (r) => r.status === "pending" && r.productLink,
-  );
-
   // Map csv_row_id → all jobs that reference it
   const { jobs } = useJobStore();
   const jobsByRow = new Map<string, ReelJob[]>();
@@ -241,6 +232,37 @@ export default function DashboardPage() {
       n.has(id) ? n.delete(id) : n.add(id);
       return n;
     });
+
+  type StatusFilter = "all" | "pending" | "done" | "failed";
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  // Sort by SR. NO. numerically (handles "1", "2", … "10", "11" correctly)
+  const sortedRows = [...displayedRows].sort((a, b) => {
+    const n = (s: string) => parseInt(s?.replace(/\D/g, "") || "0", 10);
+    return n(a.srNo) - n(b.srNo);
+  });
+
+  const filteredRows =
+    statusFilter === "all"
+      ? sortedRows
+      : sortedRows.filter((r) => {
+          if (statusFilter === "done") return r.status === "done";
+          if (statusFilter === "pending") return r.status === "pending" || r.status === "processing";
+          if (statusFilter === "failed") return r.status === "failed";
+          return true;
+        });
+
+  const statusCounts = {
+    all: sortedRows.length,
+    pending: sortedRows.filter((r) => r.status === "pending" || r.status === "processing").length,
+    done: sortedRows.filter((r) => r.status === "done").length,
+    failed: sortedRows.filter((r) => r.status === "failed").length,
+  };
+
+  const processableSelected = filteredRows.filter(
+    (r) => selectedIds.has(r.id) && r.productLink,
+  ).length;
+  const allProcessable = filteredRows.filter((r) => r.productLink);
 
   return (
     <div className="space-y-6 max-w-6xl">
@@ -406,19 +428,45 @@ export default function DashboardPage() {
         <div className="xl:col-span-3 space-y-3">
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-lg px-4 py-2.5 shadow-sm">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className="text-sm font-semibold text-slate-700">
                 {activeUploadId
                   ? (uploads.find((u) => u.uploadId === activeUploadId)
                       ?.uploadName ?? "Upload")
                   : "All Rows"}
               </span>
-              <Badge
-                variant="secondary"
-                className="bg-indigo-50 text-indigo-700 border-0 text-xs px-2.5"
-              >
-                {displayedRows.length} rows
-              </Badge>
+              {/* Status filter pills */}
+              {(
+                [
+                  { key: "all", label: "All" },
+                  { key: "pending", label: "Pending" },
+                  { key: "done", label: "Done" },
+                  { key: "failed", label: "Failed" },
+                ] as { key: StatusFilter; label: string }[]
+              ).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setStatusFilter(key)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors",
+                    statusFilter === key
+                      ? key === "done"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : key === "failed"
+                          ? "bg-red-100 text-red-600"
+                          : "bg-indigo-100 text-indigo-700"
+                      : "bg-slate-100 text-slate-500 hover:bg-slate-200",
+                  )}
+                >
+                  {label}
+                  <span className={cn(
+                    "text-[10px] font-semibold tabular-nums",
+                    statusFilter === key ? "opacity-100" : "opacity-60",
+                  )}>
+                    {statusCounts[key]}
+                  </span>
+                </button>
+              ))}
               {selectedIds.size > 0 && (
                 <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-xs px-2.5">
                   {selectedIds.size} selected
@@ -461,7 +509,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-center py-20 bg-white border border-slate-200 rounded-lg">
               <Loader2 className="h-5 w-5 text-slate-300 animate-spin" />
             </div>
-          ) : displayedRows.length === 0 ? (
+          ) : sortedRows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white border border-dashed border-slate-200 rounded-xl text-center">
               <FileSpreadsheet className="h-10 w-10 text-slate-200 mb-3" />
               <p className="text-sm font-medium text-slate-500">No rows yet</p>
@@ -477,6 +525,16 @@ export default function DashboardPage() {
                 <Upload className="h-3.5 w-3.5" />
                 Upload File
               </Button>
+            </div>
+          ) : filteredRows.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 bg-white border border-slate-200 rounded-lg text-center">
+              <p className="text-sm font-medium text-slate-500">No {statusFilter} rows</p>
+              <button
+                onClick={() => setStatusFilter("all")}
+                className="text-xs text-indigo-600 hover:underline mt-1"
+              >
+                Clear filter
+              </button>
             </div>
           ) : (
             <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
@@ -515,9 +573,8 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {displayedRows.map((row) => {
-                      const isSelectable =
-                        row.status === "pending" && !!row.productLink;
+                    {filteredRows.map((row) => {
+                      const isSelectable = !!row.productLink;
                       const isSelected = selectedIds.has(row.id);
                       const rowJobs = jobsByRow.get(row.id) ?? [];
                       const isExpanded = expandedRows.has(row.id);

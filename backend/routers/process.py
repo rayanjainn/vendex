@@ -4,6 +4,9 @@ import os
 import re
 import shutil
 import asyncio
+import hmac
+import hashlib
+import json as _json
 import httpx
 from datetime import datetime, timezone
 from fastapi import APIRouter
@@ -34,12 +37,19 @@ async def notify_nextjs(job_id: str, status: str):
     if not NEXTJS_WEBHOOK_URL or not NEXTJS_WEBHOOK_SECRET:
         return
     try:
+        payload = _json.dumps({"job_id": job_id, "status": status}).encode()
+        signature = hmac.new(
+            NEXTJS_WEBHOOK_SECRET.encode(), payload, hashlib.sha256
+        ).hexdigest()
         async with httpx.AsyncClient() as client:
             await client.post(
                 NEXTJS_WEBHOOK_URL,
-                json={"job_id": job_id, "status": status},
-                headers={"x-webhook-secret": NEXTJS_WEBHOOK_SECRET},
-                timeout=5.0
+                content=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "x-webhook-signature": f"sha256={signature}",
+                },
+                timeout=5.0,
             )
     except Exception as e:
         logger.error(f"Webhook to Next.js failed: {e}")
@@ -60,6 +70,7 @@ async def run_pipeline(job_id: str, reel_url: str, label: str = "", csv_row_id: 
     async def flush_logs():
         await update_job(job_id, {"detailed_logs": detailed_logs})
 
+    detected_product = ""  # filled in by Gemini frame analysis for reel jobs
     try:
         is_product = _is_product_url(reel_url)
 
@@ -119,11 +130,14 @@ async def run_pipeline(job_id: str, reel_url: str, label: str = "", csv_row_id: 
                                       "pipeline_stages": _make_stages(stages, "extract", "Extracting best frames…")})
             log_event("extract", "Extracting frames")
             await flush_logs()
-            frames = await extract_best_frames(video_path, job_id)
+            frames, detected_product = await extract_best_frames(video_path, job_id)
             if not frames:
                 raise Exception("No valid frames extracted from video")
             ex_ms = int((time.time() - t0) * 1000)
-            log_event("extract", f"Extracted {len(frames)} frames")
+            if detected_product:
+                log_event("extract", f"Extracted {len(frames)} frames — product identified: {detected_product}")
+            else:
+                log_event("extract", f"Extracted {len(frames)} frames")
             stages.append({"stage": "extract", "status": "done", "message": f"{len(frames)} frames extracted", "duration_ms": ex_ms, "timestamp": datetime.now(timezone.utc).isoformat()})
             await update_job(job_id, {"pipeline_stages": _make_stages(stages, "search", "Waiting…"), "detailed_logs": detailed_logs})
 
@@ -154,7 +168,7 @@ async def run_pipeline(job_id: str, reel_url: str, label: str = "", csv_row_id: 
         # ── COMPLETE ──────────────────────────────────────────────────────────
         total_seconds = round(time.time() - pipeline_start, 1)
         log_event("pipeline", f"Completed in {total_seconds}s")
-        detected_name = suppliers[0].product_name if suppliers else (label or "Product from reel")
+        detected_name = suppliers[0].product_name if suppliers else (detected_product or label or "Product from reel")
 
         await update_job(job_id, {
             "status": JobStatus.COMPLETE.value,

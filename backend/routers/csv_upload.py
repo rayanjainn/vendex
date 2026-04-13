@@ -22,15 +22,21 @@ def normalize_header(h: str) -> str:
     return KNOWN_HEADERS.get(key, None)
 
 
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+
 @router.post("/csv/upload")
 async def upload_csv(file: UploadFile = File(...)):
     if not file.filename:
         raise HTTPException(400, "No file provided")
-    ext = file.filename.rsplit(".", 1)[-1].lower()
+
+    # Validate extension before reading to give a clear error early
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
     if ext not in ("csv", "xlsx", "xls"):
         raise HTTPException(400, "Only CSV or Excel files are supported")
 
-    content = await file.read()
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "File too large — maximum size is 10 MB")
     upload_id = f"upload_{uuid.uuid4().hex[:10]}"
     upload_name = file.filename
     now = datetime.now(timezone.utc).isoformat()

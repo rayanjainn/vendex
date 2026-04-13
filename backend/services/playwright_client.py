@@ -26,6 +26,45 @@ from utils.logger import get_logger
 # Path to save/reuse session cookies so Alibaba doesn't treat us as a fresh bot
 _SESSION_FILE = os.path.join(os.path.dirname(__file__), "..", "alibaba_session.json")
 
+# Cookies that must be present and non-expired for the session to be usable.
+# _m_h5_tk  — short-lived token used in API request signing (~24h)
+# xlly_s    — session integrity / anti-bot cookie (~24–48h)
+# If either is missing or past its expiry the whole session file is stale.
+_CRITICAL_COOKIES = {"_m_h5_tk", "xlly_s"}
+
+def _is_session_valid() -> bool:
+    """
+    Return True only if the saved session file exists AND all critical cookies
+    are present with a future expiry timestamp.  Deletes the file if invalid.
+    """
+    if not os.path.exists(_SESSION_FILE):
+        return False
+    try:
+        import json as _json, time as _time
+        with open(_SESSION_FILE) as fh:
+            data = _json.load(fh)
+        cookies = {c["name"]: c for c in data.get("cookies", [])}
+        now = _time.time()
+        for name in _CRITICAL_COOKIES:
+            c = cookies.get(name)
+            if c is None:
+                get_logger(__name__).info(f"Session invalid: cookie '{name}' missing — deleting session")
+                os.remove(_SESSION_FILE)
+                return False
+            exp = c.get("expires", -1)
+            # -1 means session-only (gone when browser closed); treat as expired
+            if exp < 0 or exp <= now:
+                get_logger(__name__).info(
+                    f"Session invalid: cookie '{name}' expired "
+                    f"({(now - exp) / 3600:.1f}h ago) — deleting session"
+                )
+                os.remove(_SESSION_FILE)
+                return False
+        return True
+    except Exception as e:
+        get_logger(__name__).warning(f"Could not validate session file: {e} — ignoring it")
+        return False
+
 logger = get_logger(__name__)
 
 
@@ -155,7 +194,9 @@ async def _extract_product_data(page, url: str, index: int, job_id: str, log_cb=
                 await page.reload(wait_until="domcontentloaded", timeout=30000)
 
         if not captcha_clean:
-            logger.warning(f"[{index}] CAPTCHA unresolved after refresh — extracting anyway")
+            # Page is still blocked — don't extract garbage data, signal for retry
+            logger.warning(f"[{index}] CAPTCHA unresolved after refresh — flagging for retry")
+            return None
 
         # Wait for h1 then scroll to trigger lazy-loaded sections
         try:
@@ -492,10 +533,15 @@ async def _extract_product_data(page, url: str, index: int, job_id: str, log_cb=
         item_id_m = re.search(r"(\d{8,})", url)
         item_id_val = item_id_m.group(1) if item_id_m else (ld_sku or "")
         logger.info(f"[{index}] chat debug: memberId={member_id!r} itemId={item_id_val!r} chatHref={d.get('chatHrefDebug','')!r} storeHref={d.get('storeHref','')!r}")
-        # Chat URL: open the product page with our extension's trigger hash.
-        # The ReelSource Chrome extension detects #vendex-chat, auto-clicks
-        # "Contact Supplier", pre-fills a default message, and clicks Send.
-        chat_url = url + "#vendex-chat"
+        # Chat URL: open product page with context encoded in the hash.
+        # The Vendex extension reads the context to build a smart inquiry message.
+        import urllib.parse as _ul
+        _ctx = _ul.quote(json.dumps({
+            "title": title[:120],
+            "moq": moq,
+            "ranking": ranking_str[:80] if ranking_str else "",
+        }), safe="")
+        chat_url = url + "#vendex-chat:" + _ctx
 
         desc_html = ""
 
@@ -567,6 +613,15 @@ async def _extract_product_data(page, url: str, index: int, job_id: str, log_cb=
             created_at=datetime.now(timezone.utc).isoformat(),
         )
 
+        # Guard: if the page returned no title AND no price AND no image, the page
+        # was almost certainly still blocked (unusual traffic page has none of these).
+        # Return None so the retry logic can re-attempt on a quiet tab.
+        if not title and primary_price_usd == 0 and not primary_image:
+            logger.warning(f"[{index}] Extracted empty product data (likely still CAPTCHA-blocked) — flagging for retry")
+            if log_cb:
+                await log_cb("search", f"[{index+1}] ⚠ Empty data — will retry")
+            return None
+
         if log_cb:
             price_str = f"₹{usd_to_inr(primary_price_usd):,.0f}" if primary_price_usd else "no price"
             await log_cb("search", f"[{index+1}] ✓ {title[:50]}", {
@@ -621,12 +676,16 @@ async def _make_browser_context(p):
     # Real Chrome has a valid Chrome installation path and passes binary-level checks.
     _CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     browser = await p.chromium.launch(
-        headless=True,
+        headless=False,
         executable_path=_CHROME_PATH if os.path.exists(_CHROME_PATH) else None,
         args=_LAUNCH_ARGS,
     )
 
-    storage_state = _SESSION_FILE if os.path.exists(_SESSION_FILE) else None
+    storage_state = _SESSION_FILE if _is_session_valid() else None
+    if storage_state:
+        logger.info("Reusing valid Alibaba session from disk.")
+    else:
+        logger.info("No valid session found — starting fresh browser session.")
 
     context = await browser.new_context(
         user_agent=(
@@ -1217,9 +1276,41 @@ async def search_alibaba_with_playwright(image_path: str, job_id: str, log_cb=No
                 return_exceptions=True,
             )
 
-            for r in raw_results:
+            # Collect successes and track which indices failed (None or exception)
+            failed_items: list[tuple[int, str]] = []
+            for i, r in enumerate(raw_results):
                 if isinstance(r, SupplierResult):
                     results.append(r)
+                else:
+                    failed_items.append((i, urls[i]))
+
+            # ── Retry failed products sequentially ────────────────────────────
+            # The "unusual traffic" CAPTCHA fires when many tabs hit Alibaba at once.
+            # Retrying one-at-a-time after a short cooldown resolves it for most cases.
+            if failed_items:
+                logger.info(f"{len(failed_items)} products failed first pass — retrying sequentially after cooldown...")
+                if log_cb:
+                    await log_cb("search", f"⟳ Retrying {len(failed_items)} blocked products one-by-one...")
+                await asyncio.sleep(4)  # brief cooldown before retry burst
+
+                for idx, product_url in failed_items:
+                    tab = await context.new_page()
+                    try:
+                        retry_result = await _extract_product_data(tab, product_url, idx, job_id, log_cb)
+                        if isinstance(retry_result, SupplierResult):
+                            results.append(retry_result)
+                            logger.info(f"[{idx}] Retry succeeded: {retry_result.product_name[:50]}")
+                        else:
+                            logger.warning(f"[{idx}] Retry also failed for {product_url}")
+                    except Exception as e:
+                        logger.warning(f"[{idx}] Retry exception: {e}")
+                    finally:
+                        try:
+                            await tab.close()
+                        except Exception:
+                            pass
+                    # Small delay between sequential retries to avoid triggering rate-limiting again
+                    await asyncio.sleep(2)
 
             logger.info(f"Successfully extracted {len(results)} products.")
             await _save_session(context)

@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 from models.database import init_db
 from routers import jobs, process, health, suppliers, csv_upload
@@ -10,6 +11,30 @@ logger = get_logger(__name__)
 
 DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", "./downloads")
 FRAME_OUTPUT_DIR = os.getenv("FRAME_OUTPUT_DIR", "./frames")
+
+# ── CORS origins ───────────────────────────────────────────────────────────────
+# In production set CORS_ORIGINS="https://yourdomain.com,https://www.yourdomain.com"
+_cors_env = os.getenv("CORS_ORIGINS", "")
+ALLOWED_ORIGINS: list[str] = (
+    [o.strip() for o in _cors_env.split(",") if o.strip()]
+    if _cors_env
+    else ["http://localhost:3001", "http://localhost:3000"]
+)
+
+# ── Security headers middleware ────────────────────────────────────────────────
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        # Only set HSTS in production (when not on localhost)
+        if os.getenv("ENVIRONMENT", "development") == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,19 +48,24 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Vendex API",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    # Disable the auto-generated docs in production
+    docs_url=None if os.getenv("ENVIRONMENT") == "production" else "/docs",
+    redoc_url=None if os.getenv("ENVIRONMENT") == "production" else "/redoc",
 )
 
 @app.get("/health")
 async def root_health():
     return {"status": "ok", "message": "Vendex backend is running"}
 
+app.add_middleware(SecurityHeadersMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3001"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Webhook-Secret"],
 )
 
 app.include_router(process.router, prefix="/api/v1", tags=["process"])

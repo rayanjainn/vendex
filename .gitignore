@@ -28,6 +28,11 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+!.env.example
+
+# logs
+vendex-backend.log
+vendex-frontend.log
 
 # vercel
 .vercel
