@@ -6,12 +6,25 @@ import { useUIStore } from '@/stores/uiStore';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { useAuthStore } from '@/stores/authStore';
+import { useRouter } from 'next/navigation';
+import { LogOut } from 'lucide-react';
 
 export function TopBar() {
   const { sidebarOpen } = useUIStore();
+  const { role, logout } = useAuthStore();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
+
+  const handleLogout = () => {
+    // Clear cookies manually as well to be sure
+    document.cookie = "vendex-role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+    document.cookie = "vendex-auth=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+    logout();
+    router.push('/login');
+  };
 
   return (
     <header className={cn(
@@ -37,12 +50,25 @@ export function TopBar() {
 
         <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
           <div className="hidden sm:block text-right">
-            <p className="text-xs font-semibold text-slate-700 leading-none">Rayan Jain</p>
-            <p className="text-[10px] text-indigo-500 font-medium mt-0.5">Admin</p>
+            <p className="text-xs font-semibold text-slate-700 leading-none">
+              {role === 'admin' ? 'Rayan Jain' : 'Guest'}
+            </p>
+            <p className={cn(
+              "text-[10px] font-medium mt-0.5 uppercase tracking-wider",
+              role === 'admin' ? "text-indigo-500" : "text-blue-500"
+            )}>
+              {role || 'Viewer'}
+            </p>
           </div>
-          <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center border border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors">
-            <UserCircle className="h-5 w-5 text-slate-400" />
-          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleLogout}
+            className="h-8 w-8 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+            title="Logout"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </header>

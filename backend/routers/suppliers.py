@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Depends
+from utils.auth import require_viewer
 from typing import List, Optional
 from models.database import get_pool, to_camel
 import json
@@ -8,7 +9,7 @@ import os
 router = APIRouter()
 
 @router.post("/suppliers/compare/insights")
-async def compare_insights(body: dict):
+async def compare_insights(body: dict, _viewer: str = Depends(require_viewer)):
     """
     Call Gemini 1.5 Flash (free tier) to generate comparison insights.
     Expects body: { suppliers: [...SupplierResult] }
@@ -100,7 +101,8 @@ async def get_suppliers(
     sort_by: str = "match_score",
     sort_dir: str = "desc",
     page: int = 1,
-    page_size: int = 20
+    page_size: int = 20,
+    _viewer: str = Depends(require_viewer)
 ):
     # Build WHERE clause with asyncpg $N positional params
     conditions = ["job_id = $1"]

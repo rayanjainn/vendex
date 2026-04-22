@@ -3,7 +3,8 @@ import os
 import re
 import asyncio
 import shutil
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Request, Query, Depends
+from utils.auth import require_admin, require_viewer
 from fastapi.responses import StreamingResponse
 from models.database import get_all_jobs, get_job, delete_job_with_suppliers
 
@@ -28,6 +29,7 @@ async def read_jobs(
     status: str = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    _viewer: str = Depends(require_viewer)
 ):
     if status is not None and status not in _VALID_STATUSES:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(_VALID_STATUSES)}")
@@ -35,7 +37,7 @@ async def read_jobs(
     return jobs
 
 @router.get("/jobs/{job_id}")
-async def read_job(job_id: str):
+async def read_job(job_id: str, _viewer: str = Depends(require_viewer)):
     _validate_job_id(job_id)
     job = await get_job(job_id)
     if not job:
@@ -43,7 +45,7 @@ async def read_job(job_id: str):
     return job
 
 @router.get("/jobs/{job_id}/stream")
-async def job_stream(job_id: str, request: Request):
+async def job_stream(job_id: str, request: Request, _viewer: str = Depends(require_viewer)):
     _validate_job_id(job_id)
     job = await get_job(job_id)
     if not job:
@@ -80,7 +82,7 @@ async def job_stream(job_id: str, request: Request):
     )
 
 @router.delete("/jobs/{job_id}")
-async def delete_job_endpoint(job_id: str):
+async def delete_job_endpoint(job_id: str, _admin: str = Depends(require_admin)):
     _validate_job_id(job_id)
     await delete_job_with_suppliers(job_id)
     shutil.rmtree(os.path.join(_DOWNLOADS_DIR, job_id), ignore_errors=True)

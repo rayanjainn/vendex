@@ -9,9 +9,10 @@ import hashlib
 import json as _json
 import httpx
 from datetime import datetime, timezone
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from models.schemas import JobCreate, ProcessResponse, Platform, JobStatus
 from pydantic import BaseModel
+from utils.auth import require_admin
 from models.database import save_job, update_job, save_supplier, update_csv_row
 from services.downloader import download
 from services.frame_extractor import extract_best_frames
@@ -161,8 +162,20 @@ async def run_pipeline(job_id: str, reel_url: str, label: str = "", csv_row_id: 
         # ── NORMALIZING ───────────────────────────────────────────────────────
         await update_job(job_id, {"status": JobStatus.NORMALIZING.value, "progress_percent": 90})
         log_event("normalize", "Saving to database")
-        for supplier in suppliers:
-            await save_supplier(supplier.model_dump())
+        
+        # Retry logic for DB saves (handling Neon connection drops)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                for supplier in suppliers:
+                    await save_supplier(supplier.model_dump())
+                break # Success
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                logger.warning(f"DB Save attempt {attempt + 1} failed, retrying in 2s... Error: {e}")
+                await asyncio.sleep(2)
+
         stages.append({"stage": "normalizing", "status": "done", "message": f"Saved {len(suppliers)} suppliers", "duration_ms": 0, "timestamp": datetime.now(timezone.utc).isoformat()})
 
         # ── COMPLETE ──────────────────────────────────────────────────────────
@@ -208,7 +221,7 @@ async def run_pipeline(job_id: str, reel_url: str, label: str = "", csv_row_id: 
 
 
 @router.post("/process", response_model=ProcessResponse)
-async def process_job(payload: JobCreate):
+async def process_job(payload: JobCreate, _admin: str = Depends(require_admin)):
     job_id = f"job_{uuid.uuid4().hex[:8]}"
     now = datetime.now(timezone.utc).isoformat()
 
@@ -247,7 +260,7 @@ async def _bounded_run(job_id: str, url: str, label: str, csv_row_id: str):
         await run_pipeline(job_id, url, label, csv_row_id)
 
 @router.post("/process/batch")
-async def process_batch(payload: BatchJobCreateV2):
+async def process_batch(payload: BatchJobCreateV2, _admin: str = Depends(require_admin)):
     # FastAPI BackgroundTasks runs tasks sequentially — use asyncio.create_task
     # so all jobs are scheduled onto the event loop immediately and run in parallel
     # (bounded by batch_semaphore).

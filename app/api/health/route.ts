@@ -1,18 +1,24 @@
 import { NextResponse } from 'next/server';
+import { sql } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-
 export async function GET() {
-  const response = await fetch(`${BACKEND_URL}/api/v1/health`, {
-    next: { revalidate: 60 }
-  });
-  
-  if (!response.ok) {
-    return NextResponse.json({ error: 'Failed' }, { status: response.status });
+  try {
+    // Check if we can reach the database
+    await sql`SELECT 1`;
+    
+    return NextResponse.json({ 
+      status: 'healthy',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    return NextResponse.json({ 
+      status: 'unhealthy',
+      database: 'disconnected',
+      error: 'Failed to connect to database'
+    }, { status: 503 });
   }
-  
-  const data = await response.json();
-  return NextResponse.json(data);
 }

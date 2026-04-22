@@ -3,8 +3,9 @@ import io
 import csv
 import json
 from datetime import datetime, timezone
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from models.database import save_csv_rows, get_csv_rows, update_csv_row, delete_csv_upload
+from utils.auth import require_admin, require_viewer
 
 router = APIRouter()
 
@@ -25,7 +26,7 @@ def normalize_header(h: str) -> str:
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 @router.post("/csv/upload")
-async def upload_csv(file: UploadFile = File(...)):
+async def upload_csv(file: UploadFile = File(...), _admin: str = Depends(require_admin)):
     if not file.filename:
         raise HTTPException(400, "No file provided")
 
@@ -99,12 +100,12 @@ async def upload_csv(file: UploadFile = File(...)):
 
 
 @router.get("/csv/rows")
-async def list_csv_rows(upload_id: str = None):
+async def list_csv_rows(upload_id: str = None, _viewer: str = Depends(require_viewer)):
     rows = await get_csv_rows(upload_id)
     return {"rows": rows}
 
 
 @router.delete("/csv/upload/{upload_id}")
-async def delete_upload(upload_id: str):
+async def delete_upload(upload_id: str, _admin: str = Depends(require_admin)):
     await delete_csv_upload(upload_id)
     return {"deleted": upload_id}

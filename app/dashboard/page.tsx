@@ -29,6 +29,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useJobStore } from "@/stores/jobStore";
+import { useAuthStore } from "@/stores/authStore";
 import { apiClient } from "@/lib/api-client";
 import { CsvRow, ReelJob } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,8 @@ type AppDialog =
 
 export default function DashboardPage() {
   const { fetchJobs } = useJobStore();
+  const { role } = useAuthStore();
+  const isAdmin = role === "admin";
 
   const [uploads, setUploads] = useState<UploadMeta[]>([]);
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null);
@@ -116,7 +119,7 @@ export default function DashboardPage() {
     : rows;
 
   const handleFile = async (file: File) => {
-    if (!file) return;
+    if (!file || !isAdmin) return;
     setUploading(true);
     try {
       const result = await apiClient.uploadCsv(file);
@@ -159,7 +162,7 @@ export default function DashboardPage() {
   };
 
   const handleProcess = async () => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0 || !isAdmin) return;
     const selected = rows.filter(
       (r) => selectedIds.has(r.id) && r.productLink,
     );
@@ -199,6 +202,7 @@ export default function DashboardPage() {
   };
 
   const handleDeleteUpload = (uploadId: string, uploadName: string) => {
+    if (!isAdmin) return;
     setDialog({ type: "confirm-delete", uploadId, uploadName });
   };
 
@@ -299,7 +303,7 @@ export default function DashboardPage() {
                 ? "border-indigo-400 bg-indigo-50"
                 : "border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50",
             )}
-            onClick={() => fileRef.current?.click()}
+            onClick={() => isAdmin && fileRef.current?.click()}
             onDragOver={(e) => {
               e.preventDefault();
               setDragOver(true);
@@ -324,10 +328,10 @@ export default function DashboardPage() {
               <Upload className="h-8 w-8 text-slate-300 mx-auto mb-2" />
             )}
             <p className="text-xs font-medium text-slate-600">
-              {uploading ? "Uploading…" : "Drop CSV / Excel"}
+              {uploading ? "Uploading…" : isAdmin ? "Drop CSV / Excel" : "Read Only Mode"}
             </p>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              or click to browse
+              {isAdmin ? "or click to browse" : "Upload disabled for viewers"}
             </p>
           </div>
 
@@ -385,7 +389,10 @@ export default function DashboardPage() {
                       onClick={() =>
                         handleDeleteUpload(u.uploadId, u.uploadName)
                       }
-                      className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all flex-shrink-0"
+                      className={cn(
+                        "opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all flex-shrink-0",
+                        !isAdmin && "hidden"
+                      )}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -485,12 +492,12 @@ export default function DashboardPage() {
                   Clear
                 </Button>
               )}
-              <Button
-                size="sm"
-                disabled={processableSelected === 0 || processing}
-                onClick={handleProcess}
-                className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 disabled:opacity-50"
-              >
+                <Button
+                  size="sm"
+                  disabled={processableSelected === 0 || processing || !isAdmin}
+                  onClick={handleProcess}
+                  className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 disabled:opacity-50"
+                >
                 {processing ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
@@ -516,15 +523,16 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-400 mt-1">
                 Upload a CSV or Excel file to get started.
               </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-4 gap-1.5 border-slate-200"
-                onClick={() => fileRef.current?.click()}
-              >
-                <Upload className="h-3.5 w-3.5" />
-                Upload File
-              </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-4 gap-1.5 border-slate-200"
+                  disabled={!isAdmin}
+                  onClick={() => isAdmin && fileRef.current?.click()}
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Upload File
+                </Button>
             </div>
           ) : filteredRows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 bg-white border border-slate-200 rounded-lg text-center">
@@ -548,6 +556,7 @@ export default function DashboardPage() {
                             allProcessable.length > 0 &&
                             selectedIds.size === allProcessable.length
                           }
+                          disabled={!isAdmin}
                           onCheckedChange={toggleAll}
                           className="border-slate-300"
                         />
@@ -597,6 +606,7 @@ export default function DashboardPage() {
                                   isSelectable && toggleRow(row.id)
                                 }
                                 className="border-slate-300"
+                                disabled={!isAdmin}
                               />
                             </td>
                             <td className="px-3 py-3 text-slate-400 font-mono">

@@ -46,6 +46,9 @@ async def get_pool() -> Pool:
                 min_size=2,
                 max_size=10,
                 command_timeout=60,
+                # Neon/Serverless specific optimizations
+                statement_cache_size=0, 
+                max_inactive_connection_lifetime=30.0,
             )
     return _pool
 
