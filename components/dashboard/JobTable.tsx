@@ -96,17 +96,27 @@ function JobTableRow({ job: initialJob }: { job: ReelJob }) {
     })();
 
     return (
-      <TableRow key={job.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 border-slate-100 dark:border-slate-900 transition-colors group">
+      <TableRow 
+        key={job.id} 
+        className="hover:bg-slate-50 dark:hover:bg-slate-900/40 border-slate-100 dark:border-slate-900 transition-colors group cursor-pointer"
+        onClick={() => {
+          if (job.status === 'complete' || job.status === 'failed') {
+            window.location.href = `/results/${job.id}`;
+          }
+        }}
+      >
         <TableCell className="pl-8 py-5">
           <div className="flex items-center gap-4">
-            <Link href={`/results/${job.id}`} className="h-10 w-10 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-800 group-hover:scale-110 transition-transform cursor-pointer">
+            <div className="h-10 w-10 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-800 group-hover:scale-110 transition-transform">
               {platformIcons[job.platform] || platformIcons.other}
-            </Link>
+            </div>
             <div className="flex flex-col">
-              <a href={job.reelUrl} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-800 dark:text-slate-200 hover:text-primary transition-colors flex items-center gap-1.5">
-                {displayUrl}
-                <ExternalLink className="h-3 w-3 text-slate-400" />
-              </a>
+              <div onClick={(e) => e.stopPropagation()}>
+                <a href={job.reelUrl} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-800 dark:text-slate-200 hover:text-primary transition-colors flex items-center gap-1.5">
+                  {displayUrl}
+                  <ExternalLink className="h-3 w-3 text-slate-400" />
+                </a>
+              </div>
               <div className="flex items-center gap-2 mt-1">
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ID:</span>
                  <span className="text-[10px] font-bold text-slate-500 font-mono tracking-tighter">{job.id}</span>
@@ -189,8 +199,8 @@ function JobTableRow({ job: initialJob }: { job: ReelJob }) {
         </div>
       </TableCell>
       <TableCell className="text-right pr-8">
-        <div className="flex items-center justify-end gap-3">
-          {job.status === 'complete' && job.resultCount && (job.resultCount > 0) && (
+        <div className="flex items-center justify-end gap-3" onClick={(e) => e.stopPropagation()}>
+          {(job.status === 'complete' || job.status === 'failed') && (
             <Link href={`/results/${job.id}`}>
               <Button size="sm" className="h-10 px-5 bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg shadow-primary/20 transition-all font-black uppercase tracking-widest text-[9px] gap-2 border-0">
                 <Eye className="h-4 w-4" />

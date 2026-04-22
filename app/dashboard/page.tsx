@@ -671,7 +671,7 @@ export default function DashboardPage() {
                                   {rowJobs.length !== 1 ? "s" : ""}
                                 </button>
                               ) : (
-                                <RowStatusBadge status={row.status} />
+                                <RowStatusBadge status={row.status} jobId={row.jobId} />
                               )}
                             </td>
                           </tr>
@@ -829,7 +829,7 @@ function JobHistoryRow({ job }: { job: ReelJob }) {
   );
 }
 
-function RowStatusBadge({ status }: { status: string }) {
+function RowStatusBadge({ status, jobId }: { status: string; jobId?: string | null }) {
   const config: Record<
     string,
     { label: string; className: string; icon?: React.ReactNode }
@@ -845,20 +845,31 @@ function RowStatusBadge({ status }: { status: string }) {
     },
     done: {
       label: "Done",
-      className: "bg-emerald-50 text-emerald-700 border-0",
+      className: "bg-emerald-50 text-emerald-700 border-0 cursor-pointer hover:bg-emerald-100 transition-colors",
       icon: <CheckCircle2 className="h-2.5 w-2.5" />,
     },
     failed: {
       label: "Failed",
-      className: "bg-red-50 text-red-600 border-0",
+      className: "bg-red-50 text-red-600 border-0 cursor-pointer hover:bg-red-100 transition-colors",
       icon: <AlertCircle className="h-2.5 w-2.5" />,
     },
   };
   const c = config[status] ?? config.pending;
-  return (
+  
+  const badge = (
     <Badge className={cn("text-[10px] h-5 px-1.5 gap-1", c.className)}>
       {c.icon}
       {c.label}
     </Badge>
   );
+
+  if (jobId && (status === 'done' || status === 'failed')) {
+    return (
+      <Link href={`/results/${jobId}`}>
+        {badge}
+      </Link>
+    );
+  }
+
+  return badge;
 }

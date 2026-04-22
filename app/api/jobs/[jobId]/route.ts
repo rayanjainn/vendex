@@ -9,7 +9,7 @@ export async function GET(
   const role = await getAuthRole();
   if (!role) return unauthorizedResponse();
 
-  const jobId = params.jobId;
+  const jobId = params.jobId.trim();
 
   try {
     const rows = await sql`SELECT * FROM jobs WHERE id = ${jobId}`;
